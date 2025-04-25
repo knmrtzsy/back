@@ -1,5 +1,5 @@
 import express from 'express';
-import pool   from '../db.js';
+import pool from '../db.js';
 const router = express.Router();
 
 // GET /api/dersler
@@ -28,11 +28,34 @@ router.post('/', async (req, res, next) => {
 
 // DELETE /api/dersler/:id
 router.delete('/:id', async (req, res, next) => {
+  const client = await pool.connect();
   try {
-    await pool.query('DELETE FROM subjects WHERE id=$1', [req.params.id]);
+    await client.query('BEGIN');
+
+    // First delete from teacher_subjects
+    await client.query('DELETE FROM teacher_subjects WHERE subject_id = $1', [req.params.id]);
+    
+    // Then delete from class_subjects
+    await client.query('DELETE FROM class_subjects WHERE subject_id = $1', [req.params.id]);
+    
+    // Finally delete from timetables
+    await client.query('DELETE FROM timetables WHERE subject_id = $1', [req.params.id]);
+
+    // Then delete the subject itself
+    const result = await client.query('DELETE FROM subjects WHERE id = $1', [req.params.id]);
+    
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Ders bulunamadı' });
+    }
+
+    await client.query('COMMIT');
     res.sendStatus(204);
   } catch (err) {
+    await client.query('ROLLBACK');
     next(err);
+  } finally {
+    client.release();
   }
 });
 
