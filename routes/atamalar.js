@@ -170,4 +170,17 @@ router.get('/timetables', async (req, res, next) => {
   }
 });
 
+// DELETE /api/atamalar/timetable/:id
+router.delete('/timetable/:id', async (req, res, next) => {
+  try {
+    const result = await pool.query('DELETE FROM timetables WHERE id = $1', [req.params.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Kayıt bulunamadı' });
+    }
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
