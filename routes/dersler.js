@@ -29,10 +29,11 @@ router.post('/', async (req, res, next) => {
 // POST /api/dersler
 router.put('/update', async (req, res, next) => {
   try {
-  const {id,name}= req.body
+    console.log(req.body);
+    const {id,name}= req.body
     const { rows } = await pool.query(
       'update subjects set name = $1 where id =$2',
-      [id, name]
+      [name, id]
     );
     res.status(201).json(rows[0]);
   } catch (err) {

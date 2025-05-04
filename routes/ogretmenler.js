@@ -21,6 +21,56 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// PUT /api/ogretmenler/update
+router.put('/update', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const { id, name, subjects } = req.body;
+    
+    await client.query('BEGIN');
+    
+    // Update teacher name
+    await client.query(
+      'UPDATE teachers SET name = $1 WHERE id = $2',
+      [name, id]
+    );
+    
+    await client.query('DELETE FROM teacher_subjects WHERE teacher_id = $1', [id]);
+
+    if (subjects && subjects.length > 0) {
+      const values = subjects.map(subjectId => `(${id}, ${subjectId})`).join(',');
+      await client.query(`
+        INSERT INTO teacher_subjects(teacher_id, subject_id)
+        VALUES ${values}
+      `);
+    }
+    
+    await client.query('COMMIT');
+
+    const { rows: [updatedTeacher] } = await client.query(`
+      SELECT t.*, 
+        array_agg(s.name) FILTER (WHERE s.id IS NOT NULL) as subjects,
+        array_agg(s.id) FILTER (WHERE s.id IS NOT NULL) as subject_ids
+      FROM teachers t
+      LEFT JOIN teacher_subjects ts ON t.id = ts.teacher_id
+      LEFT JOIN subjects s ON ts.subject_id = s.id
+      WHERE t.id = $1
+      GROUP BY t.id
+    `, [id]);
+    
+    if (!updatedTeacher) {
+      return res.status(404).json({ error: 'Öğretmen bulunamadı' });
+    }
+    
+    res.json(updatedTeacher);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/ogretmenler/:id
 router.get('/:id', async (req, res, next) => {
   try {

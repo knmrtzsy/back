@@ -153,16 +153,20 @@ router.get('/timetables', async (req, res, next) => {
   try {
     const { rows } = await pool.query(`
       SELECT t.id,
-             c.name  AS class,
-             s.name  AS subject,
-             te.name AS teacher,
-             t.day_of_week,
-             t.slot
-      FROM timetables t
-      JOIN classes c  ON c.id  = t.class_id
-      JOIN subjects s ON s.id  = t.subject_id
-      JOIN teachers te ON te.id = t.teacher_id
-      ORDER BY t.day_of_week, t.slot
+       t.class_id,
+       c.name  AS class,
+       s.name  AS subject,
+       s.id    AS subject_id,
+       c.id    AS class_id,
+       te.id   AS teacher_id,
+       te.name AS teacher,
+       t.day_of_week,
+       t.slot
+FROM timetables t
+JOIN classes c  ON c.id  = t.class_id
+JOIN subjects s ON s.id  = t.subject_id
+JOIN teachers te ON te.id = t.teacher_id
+ORDER BY t.day_of_week, t.slot
     `);
     res.json(rows);
   } catch (err) {
